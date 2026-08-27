@@ -817,7 +817,12 @@ def add_watermark_if_needed(value: str, paragraph: Any) -> Any:
     return paragraph
 
 
-def build_sectioned_text(value: str, paragraph_style: ParagraphStyle, label_width: float = 0) -> Table | None:
+def build_sectioned_text(
+    value: str,
+    paragraph_style: ParagraphStyle,
+    changed_label_gap: float = 3.2,
+    repeated_label_gap: float = 0,
+) -> Table | None:
     lines = [line.strip() for line in value.split("\n") if line.strip()]
     parsed = [split_section_line(line) for line in lines]
     if not any(parsed):
@@ -841,8 +846,10 @@ def build_sectioned_text(value: str, paragraph_style: ParagraphStyle, label_widt
             label_text = f'<font name="{label_font}" size="{label_size}">{escape_text(label)}:</font>'
             body_text = f"{label_text}&nbsp;&nbsp;{semantic_highlight(body, font_name('bold'))}"
             hanging_indent = section_hanging_indent(label, label_font, label_size)
-            if previous_label and label != previous_label:
-                style_commands.append(("TOPPADDING", (0, row_index), (-1, row_index), 3.2))
+            if previous_label:
+                row_gap = changed_label_gap if label != previous_label else repeated_label_gap
+                if row_gap:
+                    style_commands.append(("TOPPADDING", (0, row_index), (-1, row_index), row_gap))
             previous_label = label
         else:
             body_text = semantic_highlight(line, font_name("bold"))
@@ -906,7 +913,12 @@ def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> 
             fontSize=creation["detail_font_size"],
             leading=creation["leading"],
         )
-        detail_table = build_sectioned_text(detail_source, detail_style)
+        detail_table = build_sectioned_text(
+            detail_source,
+            detail_style,
+            changed_label_gap=2.4,
+            repeated_label_gap=1.15,
+        )
 
     if detail_table:
         content: Any = Table(
@@ -919,7 +931,7 @@ def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> 
                     ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                     ("TOPPADDING", (0, 0), (-1, -1), 0),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (0, 0), 2.4),
+                    ("BOTTOMPADDING", (0, 0), (0, 0), 3.4),
                 ]
             ),
         )

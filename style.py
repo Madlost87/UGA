@@ -124,8 +124,8 @@ STYLE = {
     "creation": {
         "font_size": 7.9,
         "leading": 8.8,
-        "name_font_size": 10.8,
-        "name_leading": 11.6,
+        "name_font_size": 10.4,
+        "name_leading": 11.2,
         "detail_font_size": 7.5,
         "background": "#EAF4FF",
         "text_color": "#111827",
