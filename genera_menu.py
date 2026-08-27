@@ -20,6 +20,7 @@ from reportlab.graphics.shapes import Drawing, Polygon
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Flowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from PIL import Image as PILImage
 
 from config import (
     BOTANICAL_WATERCOLOR,
@@ -61,11 +62,21 @@ class WatermarkedParagraph(Flowable):
         super().__init__()
         self.paragraph = paragraph
         self.image_path = image_path
-        self.image = ImageReader(str(image_path))
+        image = PILImage.open(image_path).convert("RGBA")
+        bbox = image.getchannel("A").getbbox()
+        if bbox:
+            image = image.crop(bbox)
+        self.image = ImageReader(image)
+        self.image_width = image.width
+        self.image_height = image.height
         self.size = size
         self.opacity = opacity
         self.width = 0
         self.height = 0
+
+    def draw_dimensions(self, max_width: float, max_height: float) -> tuple[float, float]:
+        scale = min(self.size / max(self.image_width, self.image_height), max_width / self.image_width, max_height / self.image_height)
+        return self.image_width * scale, self.image_height * scale
 
     def wrap(self, availWidth: float, availHeight: float) -> tuple[float, float]:
         _paragraph_width, paragraph_height = self.paragraph.wrap(availWidth, availHeight)
@@ -78,9 +89,10 @@ class WatermarkedParagraph(Flowable):
         if hasattr(self.canv, "setFillAlpha"):
             self.canv.setFillAlpha(self.opacity)
         inset = STYLE["watermark"]["corner_inset"]
-        x = max(self.width - self.size - inset, 0)
+        draw_width, draw_height = self.draw_dimensions(max(self.width - inset * 2, 1), max(self.height - inset * 2, 1))
+        x = max(self.width - draw_width - inset, 0)
         y = inset
-        self.canv.drawImage(self.image, x, y, width=self.size, height=self.size, mask="auto")
+        self.canv.drawImage(self.image, x, y, width=draw_width, height=draw_height, mask="auto")
         self.canv.restoreState()
         self.paragraph.drawOn(self.canv, 0, 0)
 
@@ -91,13 +103,13 @@ class RecipeTable(Table):
             colpos, rowpos = pos
             colwidth, rowheight = size
             inset = STYLE["watermark"]["corner_inset"]
-            draw_size = min(cellval.size, max(colwidth - inset * 2, 0), max(rowheight - inset * 2, 0))
-            x = colpos + colwidth - draw_size - inset
+            draw_width, draw_height = cellval.draw_dimensions(max(colwidth - inset * 2, 1), max(rowheight - inset * 2, 1))
+            x = colpos + colwidth - draw_width - inset
             y = rowpos + inset
             self.canv.saveState()
             if hasattr(self.canv, "setFillAlpha"):
                 self.canv.setFillAlpha(cellval.opacity)
-            self.canv.drawImage(cellval.image, x, y, width=draw_size, height=draw_size, mask="auto")
+            self.canv.drawImage(cellval.image, x, y, width=draw_width, height=draw_height, mask="auto")
             self.canv.restoreState()
             return super()._drawCell(cellval.paragraph, cellstyle, pos, size)
         return super()._drawCell(cellval, cellstyle, pos, size)
