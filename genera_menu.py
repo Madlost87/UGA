@@ -813,7 +813,7 @@ def add_watermark_if_needed(value: str, paragraph: Any) -> Any:
     return paragraph
 
 
-def build_sectioned_text(value: str, paragraph_style: ParagraphStyle, label_width: float = 56) -> Table | None:
+def build_sectioned_text(value: str, paragraph_style: ParagraphStyle, label_width: float = 0) -> Table | None:
     lines = [line.strip() for line in value.split("\n") if line.strip()]
     parsed = [split_section_line(line) for line in lines]
     if not any(parsed):
@@ -821,38 +821,38 @@ def build_sectioned_text(value: str, paragraph_style: ParagraphStyle, label_widt
 
     rows: list[list[Any]] = []
     style_commands: list[tuple] = [
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (0, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, -1), 0),
+        ("RIGHTPADDING", (0, 0), (0, -1), 0),
         ("TOPPADDING", (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]
     previous_label: str | None = None
     label_font = font_name("bold")
-    label_size = min(paragraph_style.fontSize, 6.8)
+    label_size = min(paragraph_style.fontSize, 7.1)
 
     for row_index, (line, section) in enumerate(zip(lines, parsed, strict=True)):
         if section:
             label, body = section
             label_text = f'<font name="{label_font}" size="{label_size}">{escape_text(label)}:</font>'
-            body_text = semantic_highlight(body, font_name("bold"))
+            body_text = f"{label_text}&nbsp;&nbsp;{semantic_highlight(body, font_name('bold'))}"
             if previous_label and label != previous_label:
                 style_commands.append(("TOPPADDING", (0, row_index), (-1, row_index), 3.2))
             previous_label = label
         else:
-            label_text = ""
             body_text = semantic_highlight(line, font_name("bold"))
 
-        rows.append(
-            [
-                Paragraph(label_text, paragraph_style),
-                Paragraph(body_text, paragraph_style),
-            ]
+        row_style = ParagraphStyle(
+            f"{paragraph_style.name}Section{row_index}",
+            parent=paragraph_style,
+            leftIndent=16,
+            firstLineIndent=-16,
         )
+        rows.append([Paragraph(body_text, row_style)])
 
     return Table(
         rows,
-        colWidths=[label_width, None],
+        colWidths=[None],
         style=TableStyle(style_commands),
     )
 
@@ -893,7 +893,7 @@ def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> 
             fontSize=creation["detail_font_size"],
             leading=creation["leading"],
         )
-        detail_table = build_sectioned_text(detail_source, detail_style, label_width=37)
+        detail_table = build_sectioned_text(detail_source, detail_style)
 
     if detail_table:
         content: Any = Table(
