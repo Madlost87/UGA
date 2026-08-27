@@ -824,7 +824,7 @@ def add_watermark_if_needed(value: str, paragraph: Any) -> Any:
             paragraph,
             icon_path,
             size=STYLE["cell"]["font_size"] * 6.8,
-            opacity=0.38,
+            opacity=0.52,
         )
     return paragraph
 
