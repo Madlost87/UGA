@@ -163,6 +163,9 @@ STYLE = {
         "size": 10,
         "gap": 3,
     },
+    "watermark": {
+        "corner_inset": 0.35,
+    },
     "legend_icons": {
         "size": 17,
         "symbol_width": 28,

@@ -77,7 +77,7 @@ class WatermarkedParagraph(Flowable):
         self.canv.saveState()
         if hasattr(self.canv, "setFillAlpha"):
             self.canv.setFillAlpha(self.opacity)
-        inset = STYLE["cell"]["padding_right"] / 2
+        inset = STYLE["watermark"]["corner_inset"]
         x = max(self.width - self.size - inset, 0)
         y = inset
         self.canv.drawImage(self.image, x, y, width=self.size, height=self.size, mask="auto")
@@ -90,7 +90,7 @@ class RecipeTable(Table):
         if isinstance(cellval, WatermarkedParagraph):
             colpos, rowpos = pos
             colwidth, rowheight = size
-            inset = STYLE["cell"]["padding_right"] / 2
+            inset = STYLE["watermark"]["corner_inset"]
             draw_size = min(cellval.size, max(colwidth - inset * 2, 0), max(rowheight - inset * 2, 0))
             x = colpos + colwidth - draw_size - inset
             y = rowpos + inset
