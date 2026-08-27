@@ -57,7 +57,7 @@ class LegendEntry:
 
 
 class WatermarkedParagraph(Flowable):
-    def __init__(self, paragraph: Paragraph, image_path: Path, size: float, opacity: float) -> None:
+    def __init__(self, paragraph: Any, image_path: Path, size: float, opacity: float) -> None:
         super().__init__()
         self.paragraph = paragraph
         self.image_path = image_path
@@ -587,8 +587,11 @@ def escape_text(value: str) -> str:
     )
 
 
+SECTION_LABELS = ("Costo", "Prerequisito", "Effetto", "Regola", "Note")
+
+
 def format_section_breaks(value: str) -> str:
-    section_labels = ("Costo -", "Prerequisito -", "Effetto -", "Regola -", "Note -")
+    section_labels = tuple(f"{label} -" for label in SECTION_LABELS)
     lines = value.split("\n")
     formatted: list[str] = []
     previous_section_label: str | None = None
@@ -601,6 +604,13 @@ def format_section_breaks(value: str) -> str:
         previous_section_label = section_label
 
     return "\n".join(formatted)
+
+
+def split_section_line(line: str) -> tuple[str, str] | None:
+    match = re.match(rf"^({'|'.join(SECTION_LABELS)})\s+-\s*(.*)$", line)
+    if not match:
+        return None
+    return match.group(1), match.group(2).strip()
 
 
 def semantic_highlight(value: str, bold_font: str | None = None, iconize_words: bool = True) -> str:
@@ -791,7 +801,7 @@ def watermark_icon_for_value(value: str) -> Path | None:
     return None
 
 
-def add_watermark_if_needed(value: str, paragraph: Paragraph) -> Any:
+def add_watermark_if_needed(value: str, paragraph: Any) -> Any:
     icon_path = watermark_icon_for_value(value)
     if icon_path and icon_path.exists():
         return WatermarkedParagraph(
@@ -803,14 +813,61 @@ def add_watermark_if_needed(value: str, paragraph: Paragraph) -> Any:
     return paragraph
 
 
+def build_sectioned_text(value: str, paragraph_style: ParagraphStyle, label_width: float = 56) -> Table | None:
+    lines = [line.strip() for line in value.split("\n") if line.strip()]
+    parsed = [split_section_line(line) for line in lines]
+    if not any(parsed):
+        return None
+
+    rows: list[list[Any]] = []
+    style_commands: list[tuple] = [
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]
+    previous_label: str | None = None
+    label_font = font_name("bold")
+    label_size = min(paragraph_style.fontSize, 6.8)
+
+    for row_index, (line, section) in enumerate(zip(lines, parsed, strict=True)):
+        if section:
+            label, body = section
+            label_text = f'<font name="{label_font}" size="{label_size}">{escape_text(label)}:</font>'
+            body_text = semantic_highlight(body, font_name("bold"))
+            if previous_label and label != previous_label:
+                style_commands.append(("TOPPADDING", (0, row_index), (-1, row_index), 3.2))
+            previous_label = label
+        else:
+            label_text = ""
+            body_text = semantic_highlight(line, font_name("bold"))
+
+        rows.append(
+            [
+                Paragraph(label_text, paragraph_style),
+                Paragraph(body_text, paragraph_style),
+            ]
+        )
+
+    return Table(
+        rows,
+        colWidths=[label_width, None],
+        style=TableStyle(style_commands),
+    )
+
+
 def render_multiline_text(value: str, paragraph_style: ParagraphStyle) -> Any:
     if not value:
         return Paragraph(STYLE["text"]["empty_cell"], paragraph_style)
+    sectioned = build_sectioned_text(value, paragraph_style)
+    if sectioned:
+        return add_watermark_if_needed(value, sectioned)
     paragraph = Paragraph(semantic_highlight(format_section_breaks(value), font_name("bold")), paragraph_style)
     return add_watermark_if_needed(value, paragraph)
 
 
-def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> Paragraph:
+def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> Any:
     if not value:
         return render_multiline_text(value, paragraph_styles["creation"])
 
@@ -821,18 +878,48 @@ def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> 
     creation = STYLE["creation"]
     regular = font_name("regular")
     bold = font_name("hand")
-    detail = ""
-    if detail_lines:
-        detail = "<br/>" + "<br/>".join(
-            "<br/>" if not line else f'<font name="{regular}" size="{creation["detail_font_size"]}">{line}</font>'
-            for line in detail_lines
-        )
     text = (
         f'<font name="{bold}" size="{creation["name_font_size"]}">'
-        f"{name}</font>{detail}"
+        f"{name}</font>"
     )
-    paragraph = Paragraph(text, paragraph_styles["creation"])
-    return add_watermark_if_needed(value, paragraph)
+    title = Paragraph(text, paragraph_styles["creation"])
+
+    detail_table = None
+    if detail_lines:
+        detail_style = ParagraphStyle(
+            "MenuCreationDetail",
+            parent=paragraph_styles["creation"],
+            fontName=regular,
+            fontSize=creation["detail_font_size"],
+            leading=creation["leading"],
+        )
+        detail_table = build_sectioned_text(detail_source, detail_style, label_width=37)
+
+    if detail_table:
+        content: Any = Table(
+            [[title], [detail_table]],
+            colWidths=[None],
+            style=TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (0, 0), 1.6),
+                ]
+            ),
+        )
+    else:
+        detail = ""
+        if detail_lines:
+            detail = "<br/>" + "<br/>".join(
+                "<br/>" if not line else f'<font name="{regular}" size="{creation["detail_font_size"]}">{line}</font>'
+                for line in detail_lines
+            )
+        content = Paragraph(f"{text}{detail}", paragraph_styles["creation"])
+
+    return add_watermark_if_needed(value, content)
 
 
 def parse_resources(value: str) -> list[tuple[str, str]]:
