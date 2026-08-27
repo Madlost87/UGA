@@ -587,6 +587,22 @@ def escape_text(value: str) -> str:
     )
 
 
+def format_section_breaks(value: str) -> str:
+    section_labels = ("Costo -", "Prerequisito -", "Effetto -", "Regola -", "Note -")
+    lines = value.split("\n")
+    formatted: list[str] = []
+    previous_section_label: str | None = None
+
+    for line in lines:
+        section_label = next((label for label in section_labels if line.startswith(label)), None)
+        if formatted and section_label and previous_section_label and section_label != previous_section_label:
+            formatted.append("")
+        formatted.append(line)
+        previous_section_label = section_label
+
+    return "\n".join(formatted)
+
+
 def semantic_highlight(value: str, bold_font: str | None = None, iconize_words: bool = True) -> str:
     semantic = STYLE["semantic_highlights"]
     if not semantic["enabled"] or not value:
@@ -790,7 +806,7 @@ def add_watermark_if_needed(value: str, paragraph: Paragraph) -> Any:
 def render_multiline_text(value: str, paragraph_style: ParagraphStyle) -> Any:
     if not value:
         return Paragraph(STYLE["text"]["empty_cell"], paragraph_style)
-    paragraph = Paragraph(semantic_highlight(value, font_name("bold")), paragraph_style)
+    paragraph = Paragraph(semantic_highlight(format_section_breaks(value), font_name("bold")), paragraph_style)
     return add_watermark_if_needed(value, paragraph)
 
 
@@ -800,14 +816,15 @@ def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> 
 
     lines = [line.strip() for line in value.split("\n") if line.strip()]
     name = escape_text(lines[0].title())
-    detail_lines = [semantic_highlight(line, font_name("bold")) for line in lines[1:]]
+    detail_source = format_section_breaks("\n".join(lines[1:]))
+    detail_lines = [semantic_highlight(line, font_name("bold")) for line in detail_source.split("\n")]
     creation = STYLE["creation"]
     regular = font_name("regular")
     bold = font_name("hand")
     detail = ""
     if detail_lines:
         detail = "<br/>" + "<br/>".join(
-            f'<font name="{regular}" size="{creation["detail_font_size"]}">{line}</font>'
+            "<br/>" if not line else f'<font name="{regular}" size="{creation["detail_font_size"]}">{line}</font>'
             for line in detail_lines
         )
     text = (
