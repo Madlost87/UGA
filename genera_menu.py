@@ -613,6 +613,10 @@ def split_section_line(line: str) -> tuple[str, str] | None:
     return match.group(1), match.group(2).strip()
 
 
+def section_hanging_indent(label: str, label_font: str, label_size: float, gap: float = 4.0) -> float:
+    return pdfmetrics.stringWidth(f"{label}:", label_font, label_size) + gap
+
+
 def semantic_highlight(value: str, bold_font: str | None = None, iconize_words: bool = True) -> str:
     semantic = STYLE["semantic_highlights"]
     if not semantic["enabled"] or not value:
@@ -836,17 +840,19 @@ def build_sectioned_text(value: str, paragraph_style: ParagraphStyle, label_widt
             label, body = section
             label_text = f'<font name="{label_font}" size="{label_size}">{escape_text(label)}:</font>'
             body_text = f"{label_text}&nbsp;&nbsp;{semantic_highlight(body, font_name('bold'))}"
+            hanging_indent = section_hanging_indent(label, label_font, label_size)
             if previous_label and label != previous_label:
                 style_commands.append(("TOPPADDING", (0, row_index), (-1, row_index), 3.2))
             previous_label = label
         else:
             body_text = semantic_highlight(line, font_name("bold"))
+            hanging_indent = 0
 
         row_style = ParagraphStyle(
             f"{paragraph_style.name}Section{row_index}",
             parent=paragraph_style,
-            leftIndent=16,
-            firstLineIndent=-16,
+            leftIndent=hanging_indent,
+            firstLineIndent=-hanging_indent,
         )
         rows.append([Paragraph(body_text, row_style)])
 
