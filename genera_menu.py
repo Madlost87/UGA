@@ -888,7 +888,14 @@ def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> 
         f'<font name="{bold}" size="{creation["name_font_size"]}">'
         f"{name}</font>"
     )
-    title = Paragraph(text, paragraph_styles["creation"])
+    title_style = ParagraphStyle(
+        "MenuCreationTitle",
+        parent=paragraph_styles["creation"],
+        fontName=bold,
+        fontSize=creation["name_font_size"],
+        leading=creation["name_leading"],
+    )
+    title = Paragraph(text, title_style)
 
     detail_table = None
     if detail_lines:
@@ -912,7 +919,7 @@ def render_creation(value: str, paragraph_styles: dict[str, ParagraphStyle]) -> 
                     ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                     ("TOPPADDING", (0, 0), (-1, -1), 0),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (0, 0), 1.6),
+                    ("BOTTOMPADDING", (0, 0), (0, 0), 2.4),
                 ]
             ),
         )
