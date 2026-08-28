@@ -208,6 +208,11 @@ STYLE = {
         "label_padding": 1,
         "symbol_color": "#111827",
         "label_terms": [
+            "Costo",
+            "Prerequisito",
+            "Effetto",
+            "Regola",
+            "Note",
             "Attacco",
             "Movimento",
             "Difesa",
@@ -218,6 +223,13 @@ STYLE = {
             "Termina",
             "Reazione",
         ],
+        "section_label_colors": {
+            "Costo": "#0F766E",
+            "Prerequisito": "#475569",
+            "Effetto": "#2563EB",
+            "Regola": "#B45309",
+            "Note": "#64748B",
+        },
         "rules": [
             {
                 "name": "danni",

@@ -792,6 +792,10 @@ def semantic_highlight(value: str, bold_font: str | None = None, iconize_words: 
 
 def color_for_semantic_label(label: str) -> str:
     normalized = label.lower()
+    section_colors = STYLE["semantic_highlights"].get("section_label_colors", {})
+    for section_label, color in section_colors.items():
+        if normalized == section_label.lower():
+            return color
     for rule in STYLE["semantic_highlights"]["rules"]:
         if normalized in [term.lower() for term in rule["terms"]] or normalized == rule["name"].lower():
             return rule["color"]
@@ -801,12 +805,22 @@ def color_for_semantic_label(label: str) -> str:
         "difesa": "#3F6F3A",
         "estrazione": "#6B4D9A",
         "accessorio": "#7B5531",
+        "costo": "#0F766E",
+        "prerequisito": "#475569",
+        "effetto": "#2563EB",
+        "regola": "#B45309",
+        "note": "#64748B",
         "accendi": "#9A6B1F",
         "spegni": "#9A6B1F",
         "termina": "#6B4D9A",
         "reazione": "#A8322D",
     }
     return fallback.get(normalized, STYLE["cell"]["text_color"])
+
+
+def color_for_section_label(label: str) -> str:
+    section_colors = STYLE["semantic_highlights"].get("section_label_colors", {})
+    return section_colors.get(label, color_for_semantic_label(label))
 
 
 def watermark_icon_for_value(value: str) -> Path | None:
@@ -861,7 +875,11 @@ def build_sectioned_text(
     for row_index, (line, section) in enumerate(zip(lines, parsed, strict=True)):
         if section:
             label, body = section
-            label_text = f'<font name="{label_font}" size="{label_size}">{escape_text(label)}:</font>'
+            label_color = color_for_section_label(label)
+            label_text = (
+                f'<font name="{label_font}" size="{label_size}" color="{label_color}">'
+                f"{escape_text(label)}:</font>"
+            )
             body_text = f"{label_text}&nbsp;&nbsp;{semantic_highlight(body, font_name('bold'))}"
             hanging_indent = section_hanging_indent(label, label_font, label_size)
             if previous_label:
