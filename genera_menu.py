@@ -753,6 +753,12 @@ def semantic_highlight(value: str, bold_font: str | None = None, iconize_words: 
     if iconize_words:
         working_value = word_icon_pattern.sub(replace_word_icon, working_value)
 
+    if not semantic.get("highlight_inline_terms", True):
+        highlighted = escape_text(working_value)
+        for index, replacement in enumerate(protected):
+            highlighted = highlighted.replace(escape_text(f"\uE000{index}\uE001"), replacement)
+        return highlighted
+
     rules = []
     for rule in semantic["rules"]:
         for term in rule["terms"]:

@@ -203,6 +203,7 @@ STYLE = {
     "semantic_highlights": {
         "enabled": True,
         "bold": True,
+        "highlight_inline_terms": False,
         "label_background": "#F2E4BD",
         "label_padding": 1,
         "symbol_color": "#111827",
